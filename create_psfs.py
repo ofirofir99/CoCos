@@ -11,7 +11,7 @@ import trackpy as tp
 from scipy.io import loadmat
 from tifffile import tifffile
 
-from get_crops import RED_Y_LOCATION, RED_X_LOCATION, CROP_SIZE
+from utils import CROP_SIZE, RED_X_LOCATION, RED_Y_LOCATION
 
 
 def process_frame(frame):

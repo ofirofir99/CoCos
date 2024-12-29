@@ -2,9 +2,7 @@ from functools import reduce
 
 import numpy as np
 
-CROP_SIZE = (9, 19)
-RED_X_LOCATION = int(CROP_SIZE[1] - 4)
-RED_Y_LOCATION = np.ceil(CROP_SIZE[0] / 2).astype(int)
+from utils import CROP_SIZE, RED_X_LOCATION, RED_Y_LOCATION
 
 
 def get_crops(im, centers, median_calc=True):

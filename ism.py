@@ -1,4 +1,4 @@
-from get_crops import CROP_SIZE, RED_X_LOCATION
+from utils import CROP_SIZE, RED_X_LOCATION
 import numpy as np
 import cupy as cp
 import cupyx
