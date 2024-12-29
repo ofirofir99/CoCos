@@ -4,6 +4,7 @@ CROP_SIZE = (9, 19)
 RED_X_LOCATION = int(CROP_SIZE[1] - 4)
 RED_Y_LOCATION = np.ceil(CROP_SIZE[0] / 2).astype(int)
 
+
 def rescale_float32_to_uint16(arr):
     """
     Rescales a NumPy or CuPy array of type float32 to uint16.
@@ -25,3 +26,17 @@ def rescale_float32_to_uint16(arr):
     return rescaled.astype(np.uint16)
 
 
+CONTRAST_FACTORS = [0.9, 0.2]
+
+
+def myimrescale(im, factors=None):
+    # Calculate the minimum and maximum values
+    if factors is None:
+        factors = CONTRAST_FACTORS
+    im_min = np.median(im, axis=(0, 1)) * factors[0]
+    im_max = np.max(im, axis=(0, 1)) * factors[1]
+
+    # Rescale the image
+    im_rescaled = (im - im_min) / (im_max - im_min) * 255
+    im_rescaled = np.clip(im_rescaled, 0, 255)
+    return im_rescaled.astype(np.uint8)
