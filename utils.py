@@ -40,3 +40,6 @@ def myimrescale(im, factors=None):
     im_rescaled = (im - im_min) / (im_max - im_min) * 255
     im_rescaled = np.clip(im_rescaled, 0, 255)
     return im_rescaled.astype(np.uint8)
+
+def flatten(xss):
+    return [x for xs in xss for x in xs]
