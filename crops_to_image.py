@@ -35,7 +35,6 @@ def reconstruct_rgb_crops_ols(crops, basis_images):
     _num_ch = basis_images.shape[0] // 3
     norm_factor = np.max(crops, axis=(1, 2), keepdims=True)
     norm_crops = crops / norm_factor
-    recon_crops = np.zeros_like(crops)
     # start_time=time.time()
     betas = parallel_ols(norm_crops, basis_images)
     # end_time=time.time()
@@ -44,14 +43,22 @@ def reconstruct_rgb_crops_ols(crops, basis_images):
     basis_red_flat = basis_images_flat[::_num_ch]  # Shape: (num_basis/num_ch, 9*19)
     # Compute reconstructed crops
     reconstructed_flat = betas @ basis_images_flat  # Shape: (num_crops, 9*19)
-    reconstructed_crops = np.clip(reconstructed_flat.reshape(num_crops, height, width), a_min=0,
-                                  a_max=None)  # Shape: (num_crops, 9, 19)
+    reconstructed_crops = np.clip(
+        reconstructed_flat.reshape(num_crops, height, width), a_min=0, a_max=None
+    )  # Shape: (num_crops, 9, 19)
     # Compute reconstructed RGB crops using only red basis images
-    reconstructed_rgb_crops = np.zeros((crops.shape[0], crops.shape[1], crops.shape[2], _num_ch))
+    reconstructed_rgb_crops = np.zeros(
+        (crops.shape[0], crops.shape[1], crops.shape[2], _num_ch)
+    )
     for ch in range(_num_ch):
-        reconstructed_rgb_flat = betas[:, ch::_num_ch] @ basis_red_flat  # Shape: (num_crops, 9*19)
-        reconstructed_rgb_crops[..., ch] = np.clip(reconstructed_rgb_flat.reshape(num_crops, height, width), a_min=0,
-                                                   a_max=None)
+        reconstructed_rgb_flat = (
+            betas[:, ch::_num_ch] @ basis_red_flat
+        )  # Shape: (num_crops, 9*19)
+        reconstructed_rgb_crops[..., ch] = np.clip(
+            reconstructed_rgb_flat.reshape(num_crops, height, width),
+            a_min=0,
+            a_max=None,
+        )
 
     # Reshape back to original crop shape
     reconstructed_crops *= norm_factor
@@ -67,9 +74,18 @@ def compose_im_from_rgb_crops(rgb_crops, rounded_peaks, im_size=(512, 512)):
     # Prepare indexing arrays
 
     # Precompute all crops at once
-    rows = rounded_peaks[:, 1, None, None, None] + np.arange(RED_Y_LOCATION - CROP_SIZE[0], RED_Y_LOCATION)[None, :, None, None]
-    cols = rounded_peaks[:, 0, None, None, None] + np.arange(-RED_X_LOCATION, CROP_SIZE[1] - RED_X_LOCATION)[None, None, :, None]
-    channels = np.zeros((rounded_peaks.shape[0], 1, 1, 1)) + np.arange(num_channels)[None, None, None, :]
+    rows = (
+        rounded_peaks[:, 1, None, None, None]
+        + np.arange(RED_Y_LOCATION - CROP_SIZE[0], RED_Y_LOCATION)[None, :, None, None]
+    )
+    cols = (
+        rounded_peaks[:, 0, None, None, None]
+        + np.arange(-RED_X_LOCATION, CROP_SIZE[1] - RED_X_LOCATION)[None, None, :, None]
+    )
+    channels = (
+        np.zeros((rounded_peaks.shape[0], 1, 1, 1))
+        + np.arange(num_channels)[None, None, None, :]
+    )
 
     rows, cols, channels = rows.astype(int), cols.astype(int), channels.astype(int)
     np.add.at(composed_image, (rows, cols, channels), rgb_crops)

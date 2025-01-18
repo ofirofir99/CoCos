@@ -41,5 +41,21 @@ def myimrescale(im, factors=None):
     im_rescaled = np.clip(im_rescaled, 0, 255)
     return im_rescaled.astype(np.uint8)
 
+
 def flatten(xss):
     return [x for xs in xss for x in xs]
+
+
+def centers_to_rows_and_columns(centers):
+    centers = np.array(centers).astype(int)
+
+    # Precompute all crops at once
+    rows = (
+        centers[:, 1, None, None]
+        + np.arange(RED_Y_LOCATION - CROP_SIZE[0], RED_Y_LOCATION)[None, :, None]
+    )
+    cols = (
+        centers[:, 0, None, None]
+        + np.arange(-RED_X_LOCATION, CROP_SIZE[1] - RED_X_LOCATION)[None, None, :]
+    )
+    return rows, cols

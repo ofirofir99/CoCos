@@ -1,17 +1,14 @@
-import os
 from concurrent.futures import ThreadPoolExecutor
 
 import cupy as cp
 import cupyx
 import numpy as np
-import pandas as pd
 import pims
 import scipy.io as sio
 import trackpy as tp
-from scipy.io import loadmat
 from tifffile import tifffile
 
-from utils import CROP_SIZE, RED_X_LOCATION, RED_Y_LOCATION
+from utils import CROP_SIZE, centers_to_rows_and_columns
 
 
 def process_frame(frame):
@@ -33,10 +30,12 @@ def find_peaks_using_trackpy(frames_numpy, border_exclude_size):
     results = [f.result() for f in futures]
     peaks = []
     for features in results:
-        features['x'] += border_exclude_size  # We give a cropped image to exclude borders, so shift back the locations.
-        features['y'] += border_exclude_size
-        p_x = features['x'].values
-        p_y = features['y'].values
+        features["x"] += (
+            border_exclude_size  # We give a cropped image to exclude borders, so shift back the locations.
+        )
+        features["y"] += border_exclude_size
+        p_x = features["x"].values
+        p_y = features["y"].values
         peaks.append(np.column_stack((p_x, p_y)))
     return peaks
 
@@ -47,7 +46,14 @@ def new_analyze_ref_stack(stack_path, border_exclude_size=13):
     """
     frames = pims.open(stack_path)
     frames_numpy = np.array(
-        [frame[border_exclude_size:-border_exclude_size, border_exclude_size:-border_exclude_size] for frame in frames])
+        [
+            frame[
+                border_exclude_size:-border_exclude_size,
+                border_exclude_size:-border_exclude_size,
+            ]
+            for frame in frames
+        ]
+    )
     peak_locations = find_peaks_using_trackpy(frames_numpy, border_exclude_size)
     return peak_locations
 
@@ -75,8 +81,12 @@ def estimate_noise_variance_gpu(crops, stack_std_val):
         border_mask = cp.ones_like(data, dtype=bool)
     #
     border_mask[1:-1, 1:-1] = False
-    smoothedX = cupyx.scipy.ndimage.gaussian_filter1d(data, sigma=sigma, axis=-2)  # Adjust sigma if needed
-    smoothed = cupyx.scipy.ndimage.gaussian_filter1d(smoothedX, sigma=sigma, axis=-1)  # Adjust sigma if needed
+    smoothedX = cupyx.scipy.ndimage.gaussian_filter1d(
+        data, sigma=sigma, axis=-2
+    )  # Adjust sigma if needed
+    smoothed = cupyx.scipy.ndimage.gaussian_filter1d(
+        smoothedX, sigma=sigma, axis=-1
+    )  # Adjust sigma if needed
 
     if dims == 3:
         border_mean = cp.mean(data[:, border_mask], axis=1)
@@ -92,7 +102,7 @@ def estimate_noise_variance_gpu(crops, stack_std_val):
     snr[bad_ind] = 0.0
 
     # Total variance is the sum of both components
-    return (poisson_var + gaussian_var ** 2).get(), snr.get()
+    return (poisson_var + gaussian_var**2).get(), snr.get()
 
 
 def average_crop_one_picture(Im, centers):
@@ -100,17 +110,13 @@ def average_crop_one_picture(Im, centers):
     Average all crops in a picture (reference)
     Do all operations with numpy (without loops) to ensure efficiency
     """
-    centers = np.array(centers).astype(int)
-
-    # Precompute all crops at once
-    rows = centers[:, 1, None, None] + np.arange(RED_Y_LOCATION - CROP_SIZE[0], RED_Y_LOCATION)[None, :, None]
-    cols = centers[:, 0, None, None] + np.arange(-RED_X_LOCATION, CROP_SIZE[1] - RED_X_LOCATION)[None, None, :]
-
+    rows, cols = centers_to_rows_and_columns(centers)
     crops = Im[rows, cols]
 
     # Compute border median for all crops at once
-    border = np.concatenate([crops[:, 0, :], crops[:, -1, :],
-                             crops[:, :, 0], crops[:, :, -1]], axis=1)
+    border = np.concatenate(
+        [crops[:, 0, :], crops[:, -1, :], crops[:, :, 0], crops[:, :, -1]], axis=1
+    )
     border_median = np.median(border, axis=1)[:, None, None]
 
     # Apply operations to all crops simultaneously
@@ -130,7 +136,9 @@ def average_crop_all_pictures(spectral_ref_stack_paths, peaks):
     """
 
     num_channels = len(spectral_ref_stack_paths)
-    average_crop_all_pictures_all_colors = np.zeros((CROP_SIZE[0], CROP_SIZE[1], num_channels))
+    average_crop_all_pictures_all_colors = np.zeros(
+        (CROP_SIZE[0], CROP_SIZE[1], num_channels)
+    )
     for i, color in enumerate(spectral_ref_stack_paths):
         with tifffile.TiffFile(color) as tif:
             num_images = len(tif.pages)
@@ -138,15 +146,24 @@ def average_crop_all_pictures(spectral_ref_stack_paths, peaks):
 
         average_crop_all_pictures_one_color = np.zeros(CROP_SIZE)
         for j in range(num_images):
-            average_crop_all_pictures_one_color += average_crop_one_picture(stack[j], np.round(
-                peaks[j]))  #perhaps can be improved, but not critical.
-        average_crop_all_pictures_one_color = average_crop_all_pictures_one_color / num_images
-        average_crop_all_pictures_all_colors[:, :, i] = average_crop_all_pictures_one_color
+            average_crop_all_pictures_one_color += average_crop_one_picture(
+                stack[j], np.round(peaks[j])
+            )  # perhaps can be improved, but not critical.
+        average_crop_all_pictures_one_color = (
+            average_crop_all_pictures_one_color / num_images
+        )
+        average_crop_all_pictures_all_colors[:, :, i] = (
+            average_crop_all_pictures_one_color
+        )
 
     return average_crop_all_pictures_all_colors
 
 
-def import_external_ref_psfs(external_ref_psfs_stack_path, external_ref_psfs_mat_path, external_ref_psfs_names_path):
+def import_external_ref_psfs(
+    external_ref_psfs_stack_path,
+    external_ref_psfs_mat_path,
+    external_ref_psfs_names_path,
+):
     stack = tifffile.TiffFile(external_ref_psfs_stack_path).asarray()
     psfs_mat = sio.loadmat(external_ref_psfs_mat_path)
     psfs_names = sio.loadmat(external_ref_psfs_names_path)

@@ -18,14 +18,27 @@ def run_ism(all_convolved_crops, M, peaks, scatter_add_batch_size=100000):
     ism_rounded_peaks = cp.round(cp.asarray(peaks) * 2 * M)
     ism_subcrop_size = 7
 
-    window_y = slice(CROP_SIZE[0] // 2 - ism_subcrop_size // 2,
-                     CROP_SIZE[0] // 2 + ism_subcrop_size // 2 + 1)  # This creates a slice object for the y-axis
-    window_x = slice(RED_X_LOCATION - ism_subcrop_size // 2,
-                     RED_X_LOCATION + ism_subcrop_size // 2 + 1)  # This creates a slice object for the x-axis
+    window_y = slice(
+        CROP_SIZE[0] // 2 - ism_subcrop_size // 2,
+        CROP_SIZE[0] // 2 + ism_subcrop_size // 2 + 1,
+    )  # This creates a slice object for the y-axis
+    window_x = slice(
+        RED_X_LOCATION - ism_subcrop_size // 2,
+        RED_X_LOCATION + ism_subcrop_size // 2 + 1,
+    )  # This creates a slice object for the x-axis
 
-    rows = ism_rounded_peaks[:, 1, None, None, None] + cp.arange(0, int(ism_subcrop_size * M))[None, :, None, None]
-    cols = ism_rounded_peaks[:, 0, None, None, None] + cp.arange(0, int(ism_subcrop_size * M))[None, None, :, None]
-    channels = cp.zeros((ism_rounded_peaks.shape[0], 1, 1, 1)) + cp.arange(num_channels)[None, None, None, :]
+    rows = (
+        ism_rounded_peaks[:, 1, None, None, None]
+        + cp.arange(0, int(ism_subcrop_size * M))[None, :, None, None]
+    )
+    cols = (
+        ism_rounded_peaks[:, 0, None, None, None]
+        + cp.arange(0, int(ism_subcrop_size * M))[None, None, :, None]
+    )
+    channels = (
+        cp.zeros((ism_rounded_peaks.shape[0], 1, 1, 1))
+        + cp.arange(num_channels)[None, None, None, :]
+    )
     rows, cols, channels = rows.astype(int), cols.astype(int), channels.astype(int)
 
     mempool = cp._default_memory_pool
@@ -33,9 +46,11 @@ def run_ism(all_convolved_crops, M, peaks, scatter_add_batch_size=100000):
     usable_memory = free_mem * 0.8
 
     # Estimate optimal batch size
-    memory_per_pair = 2 * single_image_memory * (M ** 2) * num_channels
+    memory_per_pair = 2 * single_image_memory * (M**2) * num_channels
     batch_size = max(1, int(usable_memory // memory_per_pair))
-    print(f"Available GPU memory: {free_mem / 1e6:.2f} MB, Using batch size: {batch_size}")
+    print(
+        f"Available GPU memory: {free_mem / 1e6:.2f} MB, Using batch size: {batch_size}"
+    )
     accum = cp.zeros((im_size_M, im_size_M, num_channels))
 
     batch_start = 0
@@ -45,12 +60,21 @@ def run_ism(all_convolved_crops, M, peaks, scatter_add_batch_size=100000):
         try:
             batch_idx = slice(batch_start, batch_end)
             resized_crops = cupyx.scipy.ndimage.zoom(
-                cp.asarray(all_convolved_crops[batch_idx, window_y, window_x, :], dtype=cp.float32), (1, M, M, 1),
-                order=1)
+                cp.asarray(
+                    all_convolved_crops[batch_idx, window_y, window_x, :],
+                    dtype=cp.float32,
+                ),
+                (1, M, M, 1),
+                order=1,
+            )
             resized_crops = cp.clip(resized_crops, 0, None)
             # for i in range(0, len(test_crops),scatter_add_batch_size):
             #     batch_idx = slice(i, min(i + scatter_add_batch_size, len(test_crops)))
-            cupyx.scatter_add(accum, (rows[batch_idx], cols[batch_idx], channels[batch_idx]), resized_crops)
+            cupyx.scatter_add(
+                accum,
+                (rows[batch_idx], cols[batch_idx], channels[batch_idx]),
+                resized_crops,
+            )
 
             del resized_crops
             mempool.free_all_blocks()

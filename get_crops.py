@@ -2,21 +2,18 @@ from functools import reduce
 
 import numpy as np
 
-from utils import CROP_SIZE, RED_X_LOCATION, RED_Y_LOCATION
+from utils import CROP_SIZE, centers_to_rows_and_columns
 
 
 def get_crops(im, centers, median_calc=True):
-    centers = np.round(np.array(centers)).astype(int)
-
-    # Precompute all crops at once
-    rows = centers[:, 1, None, None] + np.arange(RED_Y_LOCATION - CROP_SIZE[0], RED_Y_LOCATION)[None, :, None]
-    cols = centers[:, 0, None, None] + np.arange(-RED_X_LOCATION, CROP_SIZE[1] - RED_X_LOCATION)[None, None, :]
+    rows, cols = centers_to_rows_and_columns(centers)
     crops = im[rows, cols]
 
     # Compute border median for all crops at once
     if median_calc:
-        border = np.concatenate([crops[:, 0, :], crops[:, -1, :],
-                                 crops[:, :, 0], crops[:, :, -1]], axis=1)
+        border = np.concatenate(
+            [crops[:, 0, :], crops[:, -1, :], crops[:, :, 0], crops[:, :, -1]], axis=1
+        )
         border_median = np.median(border, axis=1)[:, None, None]
         # Apply operations to all crops simultaneously
         crops = crops - border_median
@@ -45,10 +42,17 @@ def get_crops_all_pictures(stack, crop_locations, median_calc=True):
     for i, image in enumerate(stack):
         centers = crop_locations[i]
         number_of_peaks = len(centers)
-        crops, overall_mean, overall_std, crops_max = get_crops(image, centers, median_calc)
-        all_crops[current_peak:current_peak + number_of_peaks, :, :] = crops
-        all_crops_max[current_peak:current_peak + number_of_peaks] = crops_max
+        crops, overall_mean, overall_std, crops_max = get_crops(
+            image, centers, median_calc
+        )
+        all_crops[current_peak : current_peak + number_of_peaks, :, :] = crops
+        all_crops_max[current_peak : current_peak + number_of_peaks] = crops_max
         overall_mean_array[i] = overall_mean
         overall_std_array[i] = overall_std
         current_peak += number_of_peaks
-    return all_crops, all_crops_max, np.mean(overall_mean_array), np.mean(overall_std_array)
+    return (
+        all_crops,
+        all_crops_max,
+        np.mean(overall_mean_array),
+        np.mean(overall_std_array),
+    )

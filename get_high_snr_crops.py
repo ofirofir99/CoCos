@@ -5,6 +5,8 @@ import numpy as np
 from utils import flatten
 
 SNR_THRESHOLD = 0.1
+
+
 def estimate_noise_variance_gpu(crops):
     """
     Estimate noise variance in the data, combining Poisson and Gaussian components.
@@ -28,8 +30,12 @@ def estimate_noise_variance_gpu(crops):
         border_mask = cp.ones_like(data, dtype=bool)
     #
     border_mask[1:-1, 1:-1] = False
-    smoothedX = cupyx.scipy.ndimage.gaussian_filter1d(data, sigma=sigma, axis=-2)  # Adjust sigma if needed
-    smoothed = cupyx.scipy.ndimage.gaussian_filter1d(smoothedX, sigma=sigma, axis=-1)  # Adjust sigma if needed
+    smoothedX = cupyx.scipy.ndimage.gaussian_filter1d(
+        data, sigma=sigma, axis=-2
+    )  # Adjust sigma if needed
+    smoothed = cupyx.scipy.ndimage.gaussian_filter1d(
+        smoothedX, sigma=sigma, axis=-1
+    )  # Adjust sigma if needed
 
     if dims == 3:
         border_mean = cp.mean(data[:, border_mask], axis=1)
@@ -45,10 +51,10 @@ def estimate_noise_variance_gpu(crops):
     snr[bad_ind] = 0.0
 
     # Total variance is the sum of both components
-    return (poisson_var + gaussian_var ** 2).get(), snr.get()
+    return (poisson_var + gaussian_var**2).get(), snr.get()
 
 
-def get_high_snr_crops(all_crops,peaks):
+def get_high_snr_crops(all_crops, peaks):
     noise, snr = estimate_noise_variance_gpu(all_crops)
     flattened_peaks = np.array(flatten(peaks))
     high_snr_ind = np.where(snr > SNR_THRESHOLD)[0]
