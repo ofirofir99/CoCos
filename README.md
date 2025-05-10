@@ -3,8 +3,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)]()
 [![Paper DOI](https://img.shields.io/badge/Paper%20DOI-10.XXXX%2FXXXXXX-brightgreen)]()
-## I. Overview
 
+
+<img src="https://github.com/user-attachments/assets/f8ed6def-6690-48f4-a949-73bde453d7c0" width="500">
+
+## I. Overview
 CoCos (Confocal Color Spectral) is a GPU-compatible, Python-based image processing pipeline for data from spectral Confocal Spinning Disk Image Scanning Microscopy (CSD-ISM) systems. It implements the image reconstruction algorithms from "A Spectral Image Scanning Microscope for Multi-Color High-Resolution Imaging" by Bram L., et al. The pipeline decomposes spectral signatures into multi-color images while enhancing optical resolution.
 
 **Problem Solved:** Addresses limitations of conventional multi-color fluorescence microscopy, such as time-intensive sequential acquisition and spatio-temporal chromatic artifacts. CoCos processes data from a system designed for concurrent high-resolution and simultaneous multi-color acquisition.
