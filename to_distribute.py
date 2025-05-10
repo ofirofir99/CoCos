@@ -1,6 +1,5 @@
 import numpy as np
 import cupy as cp
-from cupy.fft import fftshift
 
 
 def get_crop_basis(psfs):
@@ -18,6 +17,7 @@ def get_crop_basis_no_grad(psfs):
     psfs_t /= np.max(psfs_t, axis=(1, 2), keepdims=True)
     basis_images = psfs_t
     return basis_images
+
 
 def sparse_deconvolution_ista(ism_image, psf, lambda_reg=0.1, num_iterations=50):
     """
@@ -44,8 +44,6 @@ def sparse_deconvolution_ista(ism_image, psf, lambda_reg=0.1, num_iterations=50)
         height // 2 - psf.shape[0] // 2 : height // 2 + psf.shape[0] // 2 + 1,
         width // 2 - psf.shape[1] // 2 : width // 2 + psf.shape[1] // 2 + 1,
     ] = psf
-
-    psf_padded_centered = fftshift(psf_padded)
 
     # Fourier transform of the PSF
     psf_ft = cp.fft.fft2(psf_padded)

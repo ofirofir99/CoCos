@@ -45,8 +45,8 @@ def get_crops_all_pictures(stack, crop_locations, median_calc=True):
         crops, overall_mean, overall_std, crops_max = get_crops(
             image, centers, median_calc
         )
-        all_crops[current_peak: current_peak + number_of_peaks, :, :] = crops
-        all_crops_max[current_peak: current_peak + number_of_peaks] = crops_max
+        all_crops[current_peak : current_peak + number_of_peaks, :, :] = crops
+        all_crops_max[current_peak : current_peak + number_of_peaks] = crops_max
         overall_mean_array[i] = overall_mean
         overall_std_array[i] = overall_std
         current_peak += number_of_peaks
