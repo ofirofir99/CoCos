@@ -1,6 +1,6 @@
 import numpy as np
 
-from utils import RED_Y_LOCATION, RED_X_LOCATION, CROP_SIZE, rescale_float32_to_uint16
+from utils import RED_Y_LOCATION, RED_X_LOCATION, CROP_SIZE
 
 
 def parallel_ols(target_crops, basis_images):
@@ -29,10 +29,14 @@ def parallel_ols(target_crops, basis_images):
     return b
 
 
-def reconstruct_rgb_crops_ols(crops, basis_images):
+def reconstruct_RGB_crops_OLS(crops, basis_images, grad_flag=True):
+    # basis_images: num_ch*PSFs, num_ch*grad_dx, num_ch*grad_dy
     num_basis, height, width = basis_images.shape
     num_crops = crops.shape[0]
-    _num_ch = basis_images.shape[0] // 3
+    if grad_flag:
+        _num_ch = basis_images.shape[0] // 3
+    else:
+        _num_ch = basis_images.shape[0]
     norm_factor = np.max(crops, axis=(1, 2), keepdims=True)
     norm_crops = crops / norm_factor
     # start_time=time.time()
@@ -47,24 +51,28 @@ def reconstruct_rgb_crops_ols(crops, basis_images):
         reconstructed_flat.reshape(num_crops, height, width), a_min=0, a_max=None
     )  # Shape: (num_crops, 9, 19)
     # Compute reconstructed RGB crops using only red basis images
-    reconstructed_rgb_crops = np.zeros(
+    reconstructed_RGB_crops = np.zeros(
         (crops.shape[0], crops.shape[1], crops.shape[2], _num_ch)
     )
     for ch in range(_num_ch):
-        reconstructed_rgb_flat = (
+        reconstructed_RGB_flat = (
             betas[:, ch::_num_ch] @ basis_red_flat
         )  # Shape: (num_crops, 9*19)
-        reconstructed_rgb_crops[..., ch] = np.clip(
-            reconstructed_rgb_flat.reshape(num_crops, height, width),
+        reconstructed_RGB_crops[..., ch] = np.clip(
+            reconstructed_RGB_flat.reshape(num_crops, height, width),
             a_min=0,
             a_max=None,
         )
 
-    # Reshape back to original crop shape
-    reconstructed_crops *= norm_factor
-    reconstructed_rgb_crops *= norm_factor[..., None]
+    # recon_RGB[i,:,:,ch]=psfs_t[0]*coefficients[ch]+coefficients[ch+_num_ch]*psf_dx[0]+coefficients[ch+2*_num_ch]*psf_dy[0]
 
-    return reconstructed_crops, reconstructed_rgb_crops
+    # Reshape back to original crop shape
+    # reconstructed_RGB_crops=reconstructed_RGB_flat.reshape(num_crops, height, width)  # Shape: (num_crops, 9, 19)
+    ###NEED TO PUT HERE CHANNELS
+    reconstructed_crops *= norm_factor
+    reconstructed_RGB_crops *= norm_factor[..., None]
+
+    return reconstructed_crops, reconstructed_RGB_crops
 
 
 def compose_im_from_rgb_crops(rgb_crops, rounded_peaks, im_size=(512, 512)):
@@ -93,4 +101,4 @@ def compose_im_from_rgb_crops(rgb_crops, rounded_peaks, im_size=(512, 512)):
     # min(i + scatter_add_batch_size, len(all_ch_crops))) cupyx.scatter_add(composed_image, (rows[batch_idx],
     # cols[batch_idx], channels[batch_idx]), cp.asarray(all_ch_crops[batch_idx])) #adding many pics at once,
     # on gpu - way faster than looping.
-    return rescale_float32_to_uint16(composed_image)
+    return composed_image  # before there was a rescale here

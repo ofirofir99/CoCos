@@ -75,7 +75,7 @@ def simulate_psf(
     return psf_image
 
 
-def process_spectral_files(
+def process_all_spectral_files(
     base_folder,
     poly3_coeffs,
     poly1_coeffs,
@@ -161,7 +161,7 @@ def simulate_psfs(
     poly1_coeffs = processed_data["coeffs_Y"].flatten()
 
     # Process all spectral files
-    psf_results, max_emission_wl = process_spectral_files(
+    psf_results, max_emission_wl = process_all_spectral_files(
         base_folder,
         poly3_coeffs,
         poly1_coeffs,

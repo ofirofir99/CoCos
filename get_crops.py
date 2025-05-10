@@ -32,7 +32,7 @@ def get_crops_all_pictures(stack, crop_locations, median_calc=True):
     """
     Get crops from the stack of images according to the crop_locations.
     """
-    total_number_of_peaks = reduce(lambda count, l: count + len(l), crop_locations, 0)
+    total_number_of_peaks = reduce(lambda count, li: count + len(li), crop_locations, 0)
     all_crops = np.zeros((total_number_of_peaks, CROP_SIZE[0], CROP_SIZE[1]))
     overall_mean_array = np.zeros(len(stack))
     overall_std_array = np.zeros(len(stack))
@@ -45,8 +45,8 @@ def get_crops_all_pictures(stack, crop_locations, median_calc=True):
         crops, overall_mean, overall_std, crops_max = get_crops(
             image, centers, median_calc
         )
-        all_crops[current_peak : current_peak + number_of_peaks, :, :] = crops
-        all_crops_max[current_peak : current_peak + number_of_peaks] = crops_max
+        all_crops[current_peak: current_peak + number_of_peaks, :, :] = crops
+        all_crops_max[current_peak: current_peak + number_of_peaks] = crops_max
         overall_mean_array[i] = overall_mean
         overall_std_array[i] = overall_std
         current_peak += number_of_peaks

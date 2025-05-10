@@ -1,7 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
 
-import cupy as cp
-import cupyx
 import numpy as np
 import pims
 import scipy.io as sio
@@ -29,6 +27,7 @@ def find_peaks_using_trackpy(frames_numpy, border_exclude_size):
 
     results = [f.result() for f in futures]
     peaks = []
+    sigma = []
     for features in results:
         features["x"] += (
             border_exclude_size  # We give a cropped image to exclude borders, so shift back the locations.
@@ -36,15 +35,17 @@ def find_peaks_using_trackpy(frames_numpy, border_exclude_size):
         features["y"] += border_exclude_size
         p_x = features["x"].values
         p_y = features["y"].values
+        sigma.append(np.mean(features["size"].values) / np.sqrt(2))
         peaks.append(np.column_stack((p_x, p_y)))
-    return peaks
+    return peaks, np.mean(np.asarray(sigma))
 
 
-def new_analyze_ref_stack(stack_path, border_exclude_size=13):
+def new_analyze_ref_stack(stack_path, skip_factor=1, border_exclude_size=13):
     """
     Run peak finding on a stack of images without borders.
     """
     frames = pims.open(stack_path)
+    frames = frames[::skip_factor]
     frames_numpy = np.array(
         [
             frame[
@@ -54,55 +55,8 @@ def new_analyze_ref_stack(stack_path, border_exclude_size=13):
             for frame in frames
         ]
     )
-    peak_locations = find_peaks_using_trackpy(frames_numpy, border_exclude_size)
-    return peak_locations
-
-
-def estimate_noise_variance_gpu(crops, stack_std_val):
-    """
-    Estimate noise variance in the data, combining Poisson and Gaussian components.
-    Args:
-        data: 3D numpy array (noisy data - not normalized).
-    Returns:
-        Estimated noise variance.
-    """
-
-    sigma = 0.8
-    data = cp.asarray(crops, dtype=cp.float32)
-    dims = data.ndim
-
-    # Poisson noise: mean signal level
-    poisson_var = cp.mean(data, axis=(-2, -1))
-
-    # # # Gaussian noise: residual variance after smoothing
-    if dims == 3:
-        border_mask = cp.ones_like(data[0, ...], dtype=bool)
-    else:
-        border_mask = cp.ones_like(data, dtype=bool)
-    #
-    border_mask[1:-1, 1:-1] = False
-    smoothedX = cupyx.scipy.ndimage.gaussian_filter1d(
-        data, sigma=sigma, axis=-2
-    )  # Adjust sigma if needed
-    smoothed = cupyx.scipy.ndimage.gaussian_filter1d(
-        smoothedX, sigma=sigma, axis=-1
-    )  # Adjust sigma if needed
-
-    if dims == 3:
-        border_mean = cp.mean(data[:, border_mask], axis=1)
-        data_mean = cp.mean(data, axis=(-2, -1))
-        bad_ind = cp.where(border_mean > data_mean)[0]
-        residuals = data[:, border_mask] - smoothed[:, border_mask]
-    else:
-        residuals = data[border_mask] - smoothed[border_mask]
-
-    # residuals=data-smoothed
-    gaussian_var = cp.var(residuals, axis=(-2, -1))
-    snr = cp.max(smoothed, axis=(-2, -1)) / (poisson_var + gaussian_var)
-    snr[bad_ind] = 0.0
-
-    # Total variance is the sum of both components
-    return (poisson_var + gaussian_var**2).get(), snr.get()
+    peak_locations, sigmas = find_peaks_using_trackpy(frames_numpy, border_exclude_size)
+    return peak_locations, sigmas
 
 
 def average_crop_one_picture(Im, centers):
@@ -165,6 +119,8 @@ def import_external_ref_psfs(
     external_ref_psfs_names_path,
 ):
     stack = tifffile.TiffFile(external_ref_psfs_stack_path).asarray()
+    # num_external_psfs = len(tif.pages)
+    # stack = tif.asarray()  # Load all images at once for efficiency
     psfs_mat = sio.loadmat(external_ref_psfs_mat_path)
     psfs_names = sio.loadmat(external_ref_psfs_names_path)
 

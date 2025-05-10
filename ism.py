@@ -16,24 +16,20 @@ def run_ism(all_convolved_crops, M, peaks, scatter_add_batch_size=100000):
     im_size_M = int(512 * M * 2)
     num_channels = all_convolved_crops.shape[3]
     ism_rounded_peaks = cp.round(cp.asarray(peaks) * 2 * M)
-    ism_subcrop_size = 7
-
-    window_y = slice(
-        CROP_SIZE[0] // 2 - ism_subcrop_size // 2,
-        CROP_SIZE[0] // 2 + ism_subcrop_size // 2 + 1,
-    )  # This creates a slice object for the y-axis
-    window_x = slice(
-        RED_X_LOCATION - ism_subcrop_size // 2,
-        RED_X_LOCATION + ism_subcrop_size // 2 + 1,
-    )  # This creates a slice object for the x-axis
+    window_y = slice(CROP_SIZE[0])
+    window_x = slice(CROP_SIZE[1])
 
     rows = (
         ism_rounded_peaks[:, 1, None, None, None]
-        + cp.arange(0, int(ism_subcrop_size * M))[None, :, None, None]
+        + cp.arange(-int(CROP_SIZE[0] * M // 2), int(CROP_SIZE[0] * M // 2))[
+            None, :, None, None
+        ]
     )
     cols = (
         ism_rounded_peaks[:, 0, None, None, None]
-        + cp.arange(0, int(ism_subcrop_size * M))[None, None, :, None]
+        + cp.arange(-int(RED_X_LOCATION * M), int((CROP_SIZE[1] - RED_X_LOCATION) * M))[
+            None, None, :, None
+        ]
     )
     channels = (
         cp.zeros((ism_rounded_peaks.shape[0], 1, 1, 1))
